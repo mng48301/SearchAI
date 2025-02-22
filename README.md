@@ -2,6 +2,8 @@
 
 An AI Search Engine that provides intelligent search functionality with real-time processing and result management.
 
+~2k LOC
+
 ## Features
 
 - Real-time search processing with progress tracking

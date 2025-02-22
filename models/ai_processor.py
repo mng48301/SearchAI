@@ -11,47 +11,32 @@ load_dotenv()
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 model = genai.GenerativeModel('gemini-pro')
 
-def format_graph_data(response_text: str) -> dict:
-    """Format response data for Google Charts"""
+def format_graph_data(text: str) -> dict:
+    """Extract and format data for visualization"""
     try:
-        # Default chart configuration
-        chart_data = {
+        # Extract numbers and labels from text
+        import re
+        numbers = re.findall(r'\$?(\d+(?:\.\d+)?)', text)
+        labels = re.findall(r'([A-Za-z\s]+?):\s*\$?\d+', text)
+        
+        if not numbers or not labels:
+            return None
+            
+        return {
             "type": "graph",
-            "graphType": "LineChart",
-            "title": "Data Visualization",
+            "graphType": "BarChart",
             "data": [
-                ["X", "Y"],  # Default headers
-                ["No Data", 0]  # Default data point
+                ["Item", "Price ($)"],  # Clear headers
+                *[(label.strip(), float(price)) for label, price in zip(labels, numbers)]
             ],
             "options": {
-                "title": "Data Visualization",
-                "hAxis": {"title": "Category"},
-                "vAxis": {"title": "Value"},
-                "curveType": "function",
-                "legend": {"position": "bottom"}
+                "title": "Price Comparison",
+                "hAxis": {"title": "Items"},
+                "vAxis": {"title": "Price ($)"},
+                "legend": "none"
             }
         }
-        
-        # Try to extract numerical data from the text
-        import re
-        numbers = re.findall(r'(\d+(?:\.\d+)?)', response_text)
-        labels = re.findall(r'([A-Za-z]+(?:\s[A-Za-z]+)*)\s*:\s*\d+', response_text)
-        
-        if numbers and labels:
-            chart_data["data"] = [
-                ["Category", "Value"]  # Headers
-            ] + list(zip(labels, map(float, numbers[:len(labels)])))
-            
-            # Update chart title if found
-            title_match = re.search(r'title["\s:]+([^"}\n]+)', response_text, re.I)
-            if title_match:
-                chart_data["title"] = title_match.group(1).strip()
-                chart_data["options"]["title"] = chart_data["title"]
-        
-        return chart_data
-        
-    except Exception as e:
-        logger.error(f"Error formatting graph data: {e}")
+    except:
         return None
 
 def format_price_data(text: str) -> dict:
@@ -75,7 +60,7 @@ def format_price_data(text: str) -> dict:
                 ["Product", "Price ($)"],  # Clear headers
                 *list(zip(
                     [name.strip() for name in names[:len(prices)]], 
-                    [float(price) for price in prices[:len(names)]]
+                    [float(price) for price in prices[:len(names)]] 
                 ))
             ],
             "options": {
@@ -92,108 +77,71 @@ def format_price_data(text: str) -> dict:
 def analyze_text(question: str, sources: list) -> dict:
     """Generate analysis of content based on the question"""
     try:
-        if not sources or not isinstance(sources, list):
-            raise ValueError("Invalid sources provided")
+        if not sources:
+            return {"content": "No source content available for analysis"}
 
-        # Format content for analysis
-        formatted_content = ""
-        if isinstance(sources[0], dict) and 'content' in sources[0]:
-            # Handle content from direct API call
-            formatted_content = sources[0]['content']
-        else:
-            # Handle content from database
-            formatted_content = "\n\n".join([
-                f"Source {i+1}: {source.get('content', '')}"
-                for i, source in enumerate(sources)
-            ])
+        # Format content with source information
+        formatted_content = "\n\n".join([
+            f"Source ({source['url']}):\n{source['content']}"
+            for source in sources
+        ])
+        
+        # Log for debugging
+        logger.debug(f"Processing question: {question}")
+        logger.debug(f"Number of sources: {len(sources)}")
+        
+        # Determine query type and create appropriate prompt
+        question_lower = question.lower()
+        is_summary = 'summary' in question_lower or 'summarize' in question_lower
+        is_price_related = any(word in question_lower for word in ['price', 'cost', 'deal', '$'])
+        needs_visualization = any(word in question_lower for word in ['graph', 'chart', 'plot', 'visualize'])
 
-        # Detect if visualization is needed
-        needs_visualization = any(word in question.lower() 
-                               for word in ['graph', 'chart', 'plot', 'visualize', 'compare', 'trend'])
-
-        if "price" in question.lower() or "cost" in question.lower():
+        if is_summary:
             prompt = f"""
-            Extract price information from this content and create a price comparison.
-            List each item and its price clearly in this format:
-            ItemName: $price
+            Provide a concise summary of this content. Include key points and main findings.
+            
+            Content to summarize:
+            {formatted_content}
+            """
+        elif is_price_related:
+            prompt = f"""
+            Extract price information from this content:
+            - List all products and their prices
+            - Include any deals or discounts mentioned
+            - Format prices as "Product: $XX.XX"
+            
+            Content to analyze:
+            {formatted_content}
             
             Question: {question}
-            Content: {formatted_content}
-            """
-            
-            response = model.generate_content(prompt)
-            graph_data = format_price_data(response.text)
-            
-            if graph_data and len(graph_data["data"]) > 1:
-                return graph_data
-            
-            # Fallback to regular text if no price data found
-            return {
-                "type": "text",
-                "content": "Could not find price information to compare. " + response.text
-            }
-
-        if needs_visualization:
-            prompt = f"""
-            Analyze this content and answer: "{question}"
-            Create a data visualization using this content.
-            
-            Return your response in this JSON format:
-            {{
-                "type": "graph",
-                "graphType": "LineChart/BarChart/PieChart",
-                "title": "Chart title",
-                "data": [["Header1", "Header2"], [value1, value2], ...],
-                "options": {{
-                    "title": "Chart title",
-                    "hAxis": {{"title": "X-axis label"}},
-                    "vAxis": {{"title": "Y-axis label"}}
-                }}
-            }}
-
-            Content to analyze:
-            {formatted_content}
             """
         else:
             prompt = f"""
-            Based on this content, answer: "{question}"
+            Answer this question using the provided content: {question}
             
             Content to analyze:
             {formatted_content}
             
-            Provide a clear, structured response.
+            Provide a clear, direct response.
             """
 
         response = model.generate_content(prompt)
         
         if not response.text:
-            raise ValueError("No response generated")
+            return {"content": "No response generated"}
 
-        # Handle visualization requests
-        if any(word in question.lower() for word in ['graph', 'chart', 'plot', 'visualize', 'compare', 'trend']):
-            graph_data = format_graph_data(response.text)
+        # Handle visualization if needed
+        if needs_visualization and is_price_related:
+            graph_data = format_price_data(response.text)
             if graph_data:
                 return graph_data
 
-        # Handle table requests
-        if any(word in question.lower() for word in ['table', 'compare', 'list']):
-            # Format as table with at least headers and one row
-            return {
-                "type": "table",
-                "headers": ["Category", "Value"],
-                "data": [["Sample", "Data"]],
-                "title": "Data Table"
-            }
-
-        # Default to markdown
+        # Return clean text response
         return {
-            "type": "markdown",
-            "content": response.text
+            "type": "text",
+            "content": response.text.strip()
         }
 
     except Exception as e:
         logger.error(f"AI analysis failed: {str(e)}")
-        return {
-            "type": "markdown",
-            "content": f"Error analyzing content: {str(e)}"
-        }
+        return {"content": f"Error analyzing content: {str(e)}"}

@@ -115,9 +115,36 @@ async def search(query: str):
             }
 
         # AI Analysis (60-90%)
-        search_progress[search_id]['progress'] = 70
-        analysis = analyze_text(query, [{"url": r["url"], "content": r["content"]} for r in detailed_results])
-        
+        try:
+            search_progress[search_id]['progress'] = 70
+            analysis = analyze_text(query, [{"url": r["url"], "content": r["content"]} for r in detailed_results])
+            
+            if "429" in str(analysis.get("error", "")):
+                search_progress[search_id].update({
+                    'status': 'completed',
+                    'progress': 100
+                })
+                return {
+                    "status": "completed",
+                    "query": query,
+                    "sites": [r["url"] for r in detailed_results],
+                    "summary": "AI analysis temporarily unavailable",
+                    "search_id": search_id
+                }
+        except Exception as e:
+            logger.error(f"AI analysis failed: {str(e)}")
+            search_progress[search_id].update({
+                'status': 'completed',
+                'progress': 100
+            })
+            return {
+                "status": "completed",
+                "query": query,
+                "sites": [r["url"] for r in detailed_results],
+                "summary": f"Error during analysis: {str(e)}",
+                "search_id": search_id
+            }
+
         # Save complete results to MongoDB
         document = {
             "query": query,
@@ -144,8 +171,14 @@ async def search(query: str):
         
     except Exception as e:
         logger.error(f"Search failed: {str(e)}")
+        if search_id in search_progress:
+            search_progress[search_id].update({
+                'status': 'completed',
+                'progress': 100
+            })
         return {
-            "status": "failed",
+            "status": "completed",
+            "query": query,
             "error": str(e),
             "search_id": search_id
         }
@@ -212,7 +245,6 @@ def clean_text_response(text: str) -> str:
 async def ask_context(request: dict):
     """Handle context-based questions using Gemini"""
     try:
-        # Get the original query and user question
         original_query = request.get("originalQuery")
         user_question = request.get("userQuestion")
         
@@ -223,58 +255,28 @@ async def ask_context(request: dict):
         stored_data = collection.find_one({"query": original_query})
         if not stored_data:
             raise HTTPException(status_code=404, detail="No data found for this query")
-            
-        # Format the content for Gemini
-        context = "\n\n".join([
-            f"Source {i+1}: {result.get('content', 'No content')}"
-            for i, result in enumerate(stored_data.get("detailed_results", []))
-        ])
         
-        # Generate the prompt
-        prompt = f"""
-        Based on the following content about "{original_query}", 
-        please answer this question: "{user_question}"
+        # Extract all content from detailed results
+        all_content = []
+        for result in stored_data.get("detailed_results", []):
+            source_content = result.get("content", "").strip()
+            if source_content:
+                all_content.append({
+                    "url": result.get("url", "Unknown Source"),
+                    "content": source_content
+                })
         
-        If the question asks for data visualization, provide the data in a format suitable for Google Charts.
-        If numerical analysis is needed, provide structured data.
+        if not all_content:
+            raise HTTPException(status_code=404, detail="No content found in search results")
         
-        Context:
-        {context}
+        # Send complete context to AI processor
+        response = analyze_text(user_question, all_content)
         
-        Provide the response in one of these formats based on the question type:
-        1. For visual data: Return type 'graph' with chartType, data, and options
-        2. For tabular data: Return type 'table' with headers and rows
-        3. For text analysis: Return type 'markdown' with formatted content
-        4. For simple answers: Return type 'text' with content
-        """
+        # Log response for debugging
+        logger.debug(f"AI Response: {response}")
         
-        # Get response from Gemini
-        response = analyze_text(user_question, [{
-            "content": prompt,
-            "role": "user"
-        }])
-        
-        if "chart" in user_question.lower() or "graph" in user_question.lower():
-            return {
-                "type": "graph",
-                "graphType": "LineChart",
-                "data": response.get("data", []),
-                "options": response.get("options", {})
-            }
-        elif "table" in user_question.lower():
-            return {
-                "type": "table",
-                "headers": response.get("headers", []),
-                "data": response.get("data", [])
-            }
-        else:
-            # Clean and format text response
-            content = response.get("content", "") or response.get("text", "") or str(response)
-            return {
-                "type": "text",
-                "content": clean_text_response(content)
-            }
-            
+        return response
+
     except Exception as e:
         logger.error(f"Error processing question: {str(e)}")
         return {

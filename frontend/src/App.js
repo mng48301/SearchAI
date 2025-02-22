@@ -3,8 +3,8 @@ import axios from 'axios';
 import { Routes, Route } from 'react-router-dom';
 import QuestionPage from './QuestionPage';
 
-// Add API base URL
-const API_BASE_URL = 'http://localhost:8000';
+// Update API base URL to use exact host
+const API_BASE_URL = 'http://127.0.0.1:8000';
 
 function MainApp() {
   const [scrapedData, setScrapedData] = useState([]);

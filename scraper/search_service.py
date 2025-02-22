@@ -16,12 +16,14 @@ def get_top_sites(query: str, num_results: int = 3) -> list:
         
         options = uc.ChromeOptions()
         options.add_argument('--disable-dev-shm-usage')
+        options.headless = False
         
         driver = uc.Chrome(options=options)
         driver.get("https://www.google.com")
         
         # Wait for search box and handle cookie consent if present
         wait = WebDriverWait(driver, 10)
+
         try:
             consent_button = wait.until(
                 EC.presence_of_element_located((By.XPATH, "//button[contains(., 'Accept all')]"))
