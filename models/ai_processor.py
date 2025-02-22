@@ -54,6 +54,41 @@ def format_graph_data(response_text: str) -> dict:
         logger.error(f"Error formatting graph data: {e}")
         return None
 
+def format_price_data(text: str) -> dict:
+    """Extract and format price data for visualization"""
+    import re
+    
+    # Find price patterns (e.g., $123.45, 123.45, 123)
+    price_pattern = r'\$?\s*(\d+(?:\.\d{2})?)'
+    prices = re.findall(price_pattern, text)
+    
+    # Find associated product/item names
+    # Look for words before prices or between colons and prices
+    name_pattern = r'([A-Za-z0-9\s\-]+?)(?:\s*:|\s+\$?\s*\d+\.?\d*)'
+    names = re.findall(name_pattern, text)
+    
+    if prices and names:
+        return {
+            "type": "graph",
+            "graphType": "BarChart",  # Better for price comparisons
+            "data": [
+                ["Product", "Price ($)"],  # Clear headers
+                *list(zip(
+                    [name.strip() for name in names[:len(prices)]], 
+                    [float(price) for price in prices[:len(names)]]
+                ))
+            ],
+            "options": {
+                "title": "Price Comparison",
+                "hAxis": {"title": "Products"},
+                "vAxis": {"title": "Price ($)"},
+                "legend": {"position": "none"},
+                "bars": {"groupWidth": "75%"},
+            }
+        }
+    
+    return None
+
 def analyze_text(question: str, sources: list) -> dict:
     """Generate analysis of content based on the question"""
     try:
@@ -75,6 +110,28 @@ def analyze_text(question: str, sources: list) -> dict:
         # Detect if visualization is needed
         needs_visualization = any(word in question.lower() 
                                for word in ['graph', 'chart', 'plot', 'visualize', 'compare', 'trend'])
+
+        if "price" in question.lower() or "cost" in question.lower():
+            prompt = f"""
+            Extract price information from this content and create a price comparison.
+            List each item and its price clearly in this format:
+            ItemName: $price
+            
+            Question: {question}
+            Content: {formatted_content}
+            """
+            
+            response = model.generate_content(prompt)
+            graph_data = format_price_data(response.text)
+            
+            if graph_data and len(graph_data["data"]) > 1:
+                return graph_data
+            
+            # Fallback to regular text if no price data found
+            return {
+                "type": "text",
+                "content": "Could not find price information to compare. " + response.text
+            }
 
         if needs_visualization:
             prompt = f"""

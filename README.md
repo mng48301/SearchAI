@@ -13,7 +13,7 @@ An AI Search Engine that provides intelligent search functionality with real-tim
 ## Technical Stack
 
 - Frontend: React.js
-- Backend: API server running on port 8000
+- Backend: fastAPI server running on port 8000
 - Communication: Axios for HTTP requests
 
 ## Installation
