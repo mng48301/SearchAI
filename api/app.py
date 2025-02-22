@@ -17,7 +17,7 @@ client = MongoClient(uri)
 db = client['astral']
 collection = db['scraped_data']
 
-app = FastAPI()
+app = FastAPI() # use to startup: uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 
 # Basic CORS setup
 app.add_middleware(
@@ -46,6 +46,18 @@ async def cancel_search(search_id: str):
             'progress': 0
         })
         return {"status": "cancelling"}
+    raise HTTPException(status_code=404, detail="Search not found")
+
+@app.get("/search/{search_id}/status")
+async def get_search_status(search_id: str):
+    """Get the current status of a search"""
+    if search_id in search_progress:
+        progress = search_progress[search_id]
+        return {
+            "status": progress.get('status', 'unknown'),
+            "progress": progress.get('progress', 0),
+            "error": progress.get('error', '')
+        }
     raise HTTPException(status_code=404, detail="Search not found")
 
 @app.get("/search/")
@@ -175,3 +187,97 @@ async def delete_search(query: str):
     except Exception as e:
         logger.error(f"Error deleting search: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+def clean_text_response(text: str) -> str:
+    """Clean up text response by removing markdown and JSON formatting"""
+    # Remove JSON/markdown formatting patterns
+    replacements = {
+        '{"type": "markdown", "content": "': '',
+        '{"type": "text", "content": "': '',
+        '"}': '',
+        '**': '',
+        '*': '',
+        '#': '',
+        '\n-': '\n•',  # Replace markdown list markers with bullet points
+        '`': ''
+    }
+    
+    cleaned = text
+    for old, new in replacements.items():
+        cleaned = cleaned.replace(old, new)
+    
+    return cleaned.strip()
+
+@app.post("/ask_context")
+async def ask_context(request: dict):
+    """Handle context-based questions using Gemini"""
+    try:
+        # Get the original query and user question
+        original_query = request.get("originalQuery")
+        user_question = request.get("userQuestion")
+        
+        if not original_query or not user_question:
+            raise HTTPException(status_code=400, detail="Missing query or question")
+            
+        # Find the stored search results
+        stored_data = collection.find_one({"query": original_query})
+        if not stored_data:
+            raise HTTPException(status_code=404, detail="No data found for this query")
+            
+        # Format the content for Gemini
+        context = "\n\n".join([
+            f"Source {i+1}: {result.get('content', 'No content')}"
+            for i, result in enumerate(stored_data.get("detailed_results", []))
+        ])
+        
+        # Generate the prompt
+        prompt = f"""
+        Based on the following content about "{original_query}", 
+        please answer this question: "{user_question}"
+        
+        If the question asks for data visualization, provide the data in a format suitable for Google Charts.
+        If numerical analysis is needed, provide structured data.
+        
+        Context:
+        {context}
+        
+        Provide the response in one of these formats based on the question type:
+        1. For visual data: Return type 'graph' with chartType, data, and options
+        2. For tabular data: Return type 'table' with headers and rows
+        3. For text analysis: Return type 'markdown' with formatted content
+        4. For simple answers: Return type 'text' with content
+        """
+        
+        # Get response from Gemini
+        response = analyze_text(user_question, [{
+            "content": prompt,
+            "role": "user"
+        }])
+        
+        if "chart" in user_question.lower() or "graph" in user_question.lower():
+            return {
+                "type": "graph",
+                "graphType": "LineChart",
+                "data": response.get("data", []),
+                "options": response.get("options", {})
+            }
+        elif "table" in user_question.lower():
+            return {
+                "type": "table",
+                "headers": response.get("headers", []),
+                "data": response.get("data", [])
+            }
+        else:
+            # Clean and format text response
+            content = response.get("content", "") or response.get("text", "") or str(response)
+            return {
+                "type": "text",
+                "content": clean_text_response(content)
+            }
+            
+    except Exception as e:
+        logger.error(f"Error processing question: {str(e)}")
+        return {
+            "type": "text",
+            "content": "Error: Could not process question. Please try rephrasing."
+        }

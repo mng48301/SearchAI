@@ -1,0 +1,114 @@
+.question-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 5rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.original-query {
+  color: var(--text-light);
+  opacity: 0.7;
+}
+
+.response-container {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.response-container h4 {
+  color: var(--text-light);
+  margin-bottom: 1.5rem;
+}
+
+.white-important-text{
+  color: white !important;
+}
+
+.helper-text {
+  color: var(--text-light);
+  opacity: 0.8;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.helper-text ul {
+  margin-top: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-light);
+}
+
+.data-table th {
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.markdown {
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  color: var(--text-light);
+  margin-top: 1.5rem;
+}
+
+.navigation-buttons {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 100;
+}
+
+.navigation-buttons .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.navigation-buttons .btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+}
+
+.response-container.text {
+  background: rgba(245, 242, 242, 0.05);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.response-container.text .content {
+  color: white;
+  line-height: 1.6;
+  opacity: 0.9;
+  font-size: 1.1rem;
+}

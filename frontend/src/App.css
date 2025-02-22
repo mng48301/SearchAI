@@ -219,7 +219,7 @@ th {
 
 .material-icons {
   color: var(--primary-color);
-  font-size: 1.5rem;
+  font-size: 14px !important;
 }
 
 .btn-outline-light {
@@ -268,4 +268,50 @@ section h2 {
 .search-results-table .summary-cell {
   white-space: normal;
   line-height: 1.4;
+}
+
+.btn-action-group {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-start;
+}
+
+.btn-analyze, .btn-delete {
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.8rem !important;
+  border-radius: 6px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 85px;
+  justify-content: center;
+}
+
+.btn-analyze {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 2px 4px -1px rgba(59, 130, 246, 0.2) !important;
+}
+
+.btn-analyze:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px -1px rgba(59, 130, 246, 0.3) !important;
+}
+
+.btn-delete {
+  background: transparent !important;
+  color: #ef4444 !important;
+  border: 1px solid #ef4444 !important;
+}
+
+.btn-delete:hover {
+  background: #ef4444 !important;
+  color: white !important;
+  transform: translateY(-1px);
+}
+
+.options-cell {
+  width: 200px;
+  padding: 0.5rem 1rem !important;
 }

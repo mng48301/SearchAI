@@ -54,7 +54,30 @@ function MainApp() {
       status: 'Processing',
       progress: 0
     }]);
-    
+
+    // Add polling for progress updates
+    const progressInterval = setInterval(async () => {
+      try {
+        const statusResponse = await axios.get(`${API_BASE_URL}/search/${searchId}/status`);
+        const { status, progress } = statusResponse.data;
+        
+        setActiveSearches(prev => 
+          prev.map(search => 
+            search.id === searchId
+              ? { ...search, status, progress: progress || 0 }
+              : search
+          )
+        );
+
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+          clearInterval(progressInterval);
+          if (status === 'completed') fetchData();
+        }
+      } catch (error) {
+        console.error('Error checking progress:', error);
+      }
+    }, 1000);
+
     try {
       const response = await axios.get(`${API_BASE_URL}/search/`, { 
         params: { query: searchQuery }
@@ -252,7 +275,7 @@ function MainApp() {
       <section>
         <h2 className="mb-3 text-white-important">Search Results</h2>
         {scrapedData.length > 0 ? (
-          <table className="table table-hover table-bordered shadow-sm">
+          <table className="table table-hover table-bordered shadow-sm text-dullwhite-important">
             <thead className="table-dark">
               <tr>
                 <th>Query</th>
@@ -280,21 +303,26 @@ function MainApp() {
                     ))}
                   </td>
                   <td>{truncate(item.summary || 'No summary', 80)}</td>
-                  <td>
-                    <div className="d-flex flex-column gap-2">
+                  <td className="options-cell">
+                    <div className="btn-action-group">
                       <button
-                        className="btn btn-custom-primary"
+                        className="btn btn-analyze"
                         onClick={() => {
-                          // Navigate to the question page, passing data as query parameter
                           window.location.href = `/analyze?query=${encodeURIComponent(item.query)}`;
                         }}
                       >
+                        <i className="material-icons" style={{fontSize: '16px', marginRight: '4px'}}>
+                          analytics
+                        </i>
                         Analyze
                       </button>
                       <button
-                        className="btn btn-danger"
+                        className="btn btn-delete"
                         onClick={() => handleDelete(item.query)}
                       >
+                        <i className="material-icons" style={{fontSize: '16px', marginRight: '4px'}}>
+                          delete
+                        </i>
                         Delete
                       </button>
                     </div>
