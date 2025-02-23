@@ -129,15 +129,72 @@ body {
   transform: translateY(-1px);
 }
 
+/* Replace existing progress bar styles with new modern design */
 .progress {
-  height: 0.75rem !important; /*can be altered per */
-  border-radius: 1rem !important;
-  background: #f3f4f6 !important;
-  overflow: hidden;
+  height: 8px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  overflow: visible !important;
+  position: relative;
+  margin: 1.5rem 0 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .progress-bar {
-  background: var(--primary-color) !important;
+  background: linear-gradient(90deg, #00C6FF 0%, #0072FF 100%) !important;
+  border-radius: 10px;
+  position: relative;
+  transition: width 0.5s ease-in-out !important;
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.5);
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0, 198, 255, 0.7);
+}
+
+.progress-bar.progress-bar-animated {
+  background-size: 30px 30px;
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, .15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, .15) 50%,
+    rgba(255, 255, 255, .15) 75%,
+    transparent 75%,
+    transparent
+  );
+  animation: progress-animation 1s linear infinite;
+}
+
+@keyframes progress-animation {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 30px 0;
+  }
+}
+
+/* Add status color variations */
+.progress-bar.bg-warning {
+  background: linear-gradient(90deg, #FF8008 0%, #FFC837 100%) !important;
+}
+
+.progress-bar.bg-success {
+  background: linear-gradient(90deg, #00b09b 0%, #96c93d 100%) !important;
+}
+
+.progress-bar.bg-danger {
+  background: linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%) !important;
 }
 
 .status-badge {

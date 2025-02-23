@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables and configure Gemini
 load_dotenv()
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 def format_graph_data(text: str) -> dict:
     """Extract and format data for visualization"""

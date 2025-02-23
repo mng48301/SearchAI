@@ -31,6 +31,15 @@ app.add_middleware(
 # In-memory store for search progress
 search_progress: Dict[str, dict] = {}
 
+def update_progress(search_id: str, status: str, progress: int):
+    """Update search progress with status message"""
+    if search_id in search_progress:
+        search_progress[search_id].update({
+            'status': status,
+            'progress': progress
+        })
+        logger.info(f"Progress update - {search_id}: {status} ({progress}%)")
+
 @app.get("/health")
 async def health_check():
     logger.info("Health check endpoint called")
@@ -63,38 +72,36 @@ async def get_search_status(search_id: str):
 @app.get("/search/")
 async def search(query: str):
     try:
-        search_id = str(time.time())
+        search_id = str(int(time.time()))
         search_progress[search_id] = {
-            'status': 'processing',
+            'status': 'Starting search...',
             'progress': 0,
             'query': query,
             'cancelled': False
         }
         
-        # Update progress: Starting search
-        search_progress[search_id]['progress'] = 10
+        # Chrome startup
+        update_progress(search_id, "Initializing Chrome browser...", 5)
         sites = get_top_sites(query)
         
         if not sites:
-            return {
-                "status": "failed",
-                "error": "No websites found"
-            }
+            update_progress(search_id, "Failed: No websites found", 0)
+            return {"status": "failed", "error": "No websites found"}
             
-        # Update progress: Found sites
-        search_progress[search_id]['progress'] = 30
+        update_progress(search_id, "Found target websites", 20)
         
-        # Store scraped content
         detailed_results = []
+        total_sites = min(len(sites), 3)
+        scraping_progress_per_site = 20  # 20% progress per site (20-80%)
         
-        for idx, url in enumerate(sites[:3]):
+        for idx, url in enumerate(sites[:total_sites]):
             if search_progress[search_id].get('cancelled'):
                 return {"status": "cancelled", "search_id": search_id}
                 
             try:
-                # Update progress: Scraping (30-60%)
-                current_progress = 30 + ((idx + 1) * 30 // 3)
-                search_progress[search_id]['progress'] = current_progress
+                # Start scraping site
+                base_progress = 20 + (idx * scraping_progress_per_site)
+                update_progress(search_id, f"Starting to scrape {url}", base_progress)
                 
                 content = scrape_website(url)
                 if content and len(content.strip()) > 100:
@@ -103,82 +110,58 @@ async def search(query: str):
                         "content": content,
                         "timestamp": time.time()
                     })
-                    logger.info(f"Successfully scraped {url}")
+                    # Successfully scraped
+                    update_progress(
+                        search_id,
+                        f"Successfully scraped site {idx + 1}/{total_sites}",
+                        base_progress + 15
+                    )
             except Exception as e:
                 logger.error(f"Error scraping {url}: {str(e)}")
+                update_progress(
+                    search_id,
+                    f"Error scraping site {idx + 1}",
+                    base_progress
+                )
                 continue
 
         if not detailed_results:
-            return {
-                "status": "failed",
-                "error": "Could not extract content from websites"
-            }
+            update_progress(search_id, "Failed: No content extracted", 0)
+            return {"status": "failed", "error": "Could not extract content from websites"}
 
-        # AI Analysis (60-90%)
-        try:
-            search_progress[search_id]['progress'] = 70
-            analysis = analyze_text(query, [{"url": r["url"], "content": r["content"]} for r in detailed_results])
-            
-            if "429" in str(analysis.get("error", "")):
-                search_progress[search_id].update({
-                    'status': 'completed',
-                    'progress': 100
-                })
-                return {
-                    "status": "completed",
-                    "query": query,
-                    "sites": [r["url"] for r in detailed_results],
-                    "summary": "AI analysis temporarily unavailable",
-                    "search_id": search_id
-                }
-        except Exception as e:
-            logger.error(f"AI analysis failed: {str(e)}")
-            search_progress[search_id].update({
-                'status': 'completed',
-                'progress': 100
-            })
-            return {
-                "status": "completed",
-                "query": query,
-                "sites": [r["url"] for r in detailed_results],
-                "summary": f"Error during analysis: {str(e)}",
-                "search_id": search_id
-            }
-
-        # Save complete results to MongoDB
+        # AI Analysis
+        update_progress(search_id, "Running AI analysis...", 85)
+        analysis = analyze_text(query, [{"url": r["url"], "content": r["content"]} for r in detailed_results])
+        
+        # Database storage
+        update_progress(search_id, "Saving results...", 95)
+        
         document = {
             "query": query,
             "sites": [r["url"] for r in detailed_results],
-            "summary": analysis.get("summary", "No summary available"),
+            "summary": analysis.get("content", "No summary available"),
             "status": "completed",
             "timestamp": time.time(),
-            "detailed_results": detailed_results,  # Store full content for each site
+            "detailed_results": detailed_results,
             "search_id": search_id
         }
         
-        # Insert into MongoDB
         collection.insert_one(document)
-        logger.info(f"Stored complete results for query: {query}")
+        update_progress(search_id, "Completed", 100)
         
-        # Return success without the full content
         return {
             "status": "completed",
             "query": query,
             "sites": [r["url"] for r in detailed_results],
-            "summary": analysis.get("summary", "No summary available"),
+            "summary": analysis.get("content", "No summary available"),
             "search_id": search_id
         }
         
     except Exception as e:
         logger.error(f"Search failed: {str(e)}")
-        if search_id in search_progress:
-            search_progress[search_id].update({
-                'status': 'completed',
-                'progress': 100
-            })
+        update_progress(search_id, f"Failed: {str(e)}", 0)
         return {
-            "status": "completed",
-            "query": query,
+            "status": "failed",
             "error": str(e),
             "search_id": search_id
         }

@@ -47,77 +47,59 @@ function MainApp() {
     e.preventDefault();
     if (!searchQuery) return;
     
-    const searchId = Date.now().toString();
+    const searchId = Math.floor(Date.now() / 1000).toString();
+    let progressInterval;
+
     setActiveSearches(prev => [...prev, {
       id: searchId,
       query: searchQuery,
-      status: 'Processing',
+      status: 'Starting...',
       progress: 0
     }]);
 
-    // Add polling for progress updates
-    const progressInterval = setInterval(async () => {
+    // Start polling immediately
+    progressInterval = setInterval(async () => {
       try {
         const statusResponse = await axios.get(`${API_BASE_URL}/search/${searchId}/status`);
-        const { status, progress } = statusResponse.data;
+        console.log('Progress update:', statusResponse.data); // Debug log
         
+        const { status, progress } = statusResponse.data;
         setActiveSearches(prev => 
           prev.map(search => 
             search.id === searchId
-              ? { ...search, status, progress: progress || 0 }
+              ? { 
+                  ...search, 
+                  status: status || 'Processing',
+                  progress: parseInt(progress) || 0
+                }
               : search
           )
         );
 
         if (status === 'completed' || status === 'failed' || status === 'cancelled') {
           clearInterval(progressInterval);
-          if (status === 'completed') fetchData();
+          if (status === 'completed') {
+            await fetchData();
+            // Remove completed search after 2 seconds
+            setTimeout(() => {
+              setActiveSearches(prev => prev.filter(search => search.id !== searchId));
+            }, 2000);
+          }
         }
       } catch (error) {
-        console.error('Error checking progress:', error);
+        console.error('Progress check error:', error);
       }
-    }, 1000);
+    }, 500); // Poll every 500ms instead of 1000ms
 
     try {
       const response = await axios.get(`${API_BASE_URL}/search/`, { 
         params: { query: searchQuery }
       });
-      
-      if (response.data.status === 'cancelled') {
-        // Search was cancelled, remove it from active searches
-        setActiveSearches(prev => 
-          prev.filter(search => search.id !== searchId)
-        );
-        return;
-      }
-      
-      console.log('Search response:', response.data);
-      
-      if (response.data.status === 'completed') {
-        // Success case
-        setActiveSearches(prev => 
-          prev.map(search => 
-            search.id === searchId
-              ? { ...search, status: 'Completed', progress: 100 }
-              : search
-          )
-        );
-        fetchData();
-      } else {
-        // Error case
-        setActiveSearches(prev => 
-          prev.map(search => 
-            search.id === searchId
-              ? { ...search, status: 'Failed', progress: 0 }
-              : search
-          )
-        );
-        alert(response.data.error || 'Search failed');
-      }
-      
       setSearchQuery('');
+      
     } catch (error) {
       console.error('Search error:', error);
+      clearInterval(progressInterval);
       setActiveSearches(prev => 
         prev.map(search => 
           search.id === searchId
@@ -194,7 +176,7 @@ function MainApp() {
     <div className="container my-4">
       <header className="app-header text-center">
         <h1>SearchAI</h1>
-        <p className="mt-2 mb-0">Intelligent Web Search Platform</p>
+        <p className="mt-2 mb-0">Intelligent AI Search Engine</p>
       </header>
 
       <section className="mb-5">
@@ -252,16 +234,16 @@ function MainApp() {
                     )}
                   </div>
                   {search.status === 'Processing' && (
-                    <div className="progress mt-2" style={{ height: '20px' }}>
+                    <div className="progress">
                       <div
-                        className="progress-bar progress-bar-striped progress-bar-animated bg-warning"
+                        className="progress-bar progress-bar-animated"
                         role="progressbar"
                         style={{ width: `${search.progress}%` }}
                         aria-valuenow={search.progress}
                         aria-valuemin="0"
                         aria-valuemax="100"
                       >
-                        {search.progress}%
+                        <span>{search.progress}%</span>
                       </div>
                     </div>
                   )}
