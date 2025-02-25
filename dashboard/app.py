@@ -3,10 +3,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from pathlib import Path
-
+from dotenv import load_dotenv
+import os
 # MongoDB Atlas URI
-uri = "mongodb+srv://mng48301:Falcon695348301%21%26%28@astralcluster.ejzk9.mongodb.net/astral?retryWrites=true&w=majority"
-client = MongoClient(uri)
+load_dotenv()
+client = MongoClient(os.getenv('MONGODB_API_KEY'))
 db = client['astral']
 collection = db['scraped_data']
 

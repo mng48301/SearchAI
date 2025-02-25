@@ -7,13 +7,17 @@ from scraper.search_service import get_top_sites
 from scraper.scraper import scrape_website
 from models.ai_processor import analyze_text
 from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # MongoDB setup
-uri = "mongodb+srv://mng48301:Falcon695348301%21%26%28@astralcluster.ejzk9.mongodb.net/astral?retryWrites=true&w=majority"
-client = MongoClient(uri)
+load_dotenv()
+client = MongoClient(os.getenv('MONGODB_API_KEY'))
+
 db = client['astral']
 collection = db['scraped_data']
 

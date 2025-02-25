@@ -74,6 +74,39 @@ def format_price_data(text: str) -> dict:
     
     return None
 
+def format_table_data(text: str) -> dict:
+    """Convert text-based table data into structured format"""
+    try:
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if len(lines) < 2:  # Need at least header and one row
+            return None
+            
+        # Try to detect table structure
+        if '|' in lines[0]:  # Markdown table
+            rows = [
+                [cell.strip() for cell in line.split('|') if cell.strip()]
+                for line in lines if not line.startswith('|-')
+            ]
+        else:  # Space/colon separated
+            rows = [line.split(':') if ':' in line else line.split()
+                   for line in lines]
+        
+        if not rows:
+            return None
+            
+        return {
+            "type": "table",
+            "headers": rows[0],
+            "rows": rows[1:],
+            "options": {
+                "showRowNumber": True,
+                "width": "100%",
+                "pageSize": 10
+            }
+        }
+    except:
+        return None
+
 def analyze_text(question: str, sources: list) -> dict:
     """Generate analysis of content based on the question"""
     try:
@@ -95,6 +128,7 @@ def analyze_text(question: str, sources: list) -> dict:
         is_summary = 'summary' in question_lower or 'summarize' in question_lower
         is_price_related = any(word in question_lower for word in ['price', 'cost', 'deal', '$'])
         needs_visualization = any(word in question_lower for word in ['graph', 'chart', 'plot', 'visualize'])
+        needs_table = any(word in question_lower for word in ['table', 'list', 'compare', 'breakdown'])
 
         if is_summary:
             prompt = f"""
@@ -115,6 +149,26 @@ def analyze_text(question: str, sources: list) -> dict:
             
             Question: {question}
             """
+        elif needs_table:
+            prompt = f"""
+            Extract and organize the information into a table format.
+            Present your response as a table with clear headers and rows.
+            Format using either:
+            1. Column1 | Column2 | Column3
+            2. Item: Value format
+            
+            Question: {question}
+            Content: {formatted_content}
+            """
+            
+            response = model.generate_content(prompt)
+            
+            if not response.text:
+                return {"content": "No response generated"}
+                
+            table_data = format_table_data(response.text)
+            if table_data:
+                return table_data
         else:
             prompt = f"""
             Answer this question using the provided content: {question}

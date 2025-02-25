@@ -38,62 +38,64 @@ function QuestionPage() {
   const renderResponse = (response) => {
     if (!response) return null;
 
-    switch (response.type) {
-      case 'graph':
-        return (
-          <div className="response-container graph">
-            <h4>{response.title}</h4>
-            <Chart
-              chartType={response.graphType}
-              data={response.data}
-              options={response.options}
-              width="100%"
-              height="400px"
-            />
-          </div>
-        );
-
-      case 'table':
-        return (
-          <div className="response-container table">
-            <h4>{response.title}</h4>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  {response.headers.map((header, i) => (
-                    <th key={i}>{header}</th>
+    if (response.type === 'table' && response.headers && response.rows) {
+      return (
+        <div className="table-responsive mt-4">
+          <table className="table">
+            <thead>
+              <tr>
+                {response.headers.map((header, idx) => (
+                  <th key={idx} className="text-white">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {response.rows.map((row, idx) => (
+                <tr key={idx}>
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} className="text-white">{cell}</td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {response.data.map((row, i) => (
-                  <tr key={i}>
-                    {row.map((cell, j) => (
-                      <td key={j}>{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-
-      case 'markdown':
-        return (
-          <div className="response-container markdown">
-            <ReactMarkdown>{response.content}</ReactMarkdown>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="response-container text">
-            <div className="content">
-              {response.content || "No response available. Please try rephrasing your question."}
-            </div>
-          </div>
-        );
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     }
+
+    if (response.type === 'graph' && response.data) {
+      return (
+        <div className="chart-container mt-4">
+          <Chart
+            chartType={response.graphType || "BarChart"}
+            data={response.data}
+            options={{
+              ...response.options,
+              backgroundColor: 'transparent',
+              legendTextStyle: { color: '#FFF' },
+              titleTextStyle: { color: '#FFF' },
+              hAxis: { 
+                ...response.options?.hAxis,
+                textStyle: { color: '#FFF' }
+              },
+              vAxis: {
+                ...response.options?.vAxis,
+                textStyle: { color: '#FFF' }
+              }
+            }}
+            width="100%"
+            height="400px"
+          />
+        </div>
+      );
+    }
+
+    // Default text response
+    return (
+      <div className="response-text mt-4 text-white">
+        {response.content}
+      </div>
+    );
   };
 
   return (

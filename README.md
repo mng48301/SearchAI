@@ -4,6 +4,8 @@ An AI Search Engine that provides intelligent search functionality with real-tim
 
 ~2k LOC
 
+![alt text](image.png)
+
 ## Features
 
 - Real-time search processing with progress tracking

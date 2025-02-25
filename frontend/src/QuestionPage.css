@@ -2,6 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding-bottom: 5rem;
+  color: #ffffff;
 }
 
 .page-header {
@@ -30,7 +31,7 @@
 }
 
 .helper-text {
-  color: var(--text-light);
+  color: rgba(255, 255, 255, 0.8);
   opacity: 0.8;
   font-size: 0.9rem;
   margin-top: 1rem;
@@ -111,4 +112,40 @@
   line-height: 1.6;
   opacity: 0.9;
   font-size: 1.1rem;
+}
+
+.response-text {
+  color: #ffffff !important;
+  font-size: 1rem;
+  line-height: 1.6;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px);
+}
+
+.table {
+  color: #ffffff !important;
+}
+
+.table thead th {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.table tbody td {
+  color: #ffffff !important;
+}
+
+.chart-container {
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px);
+}
+
+.page-header h2, 
+.page-header p,
+.page-header strong {
+  color: #ffffff !important;
 }
